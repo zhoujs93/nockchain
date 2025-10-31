@@ -13,3 +13,6 @@ pub mod shape;
 pub mod structs;
 pub mod tip5;
 pub mod zoon;
+// existing pub mod bpoly; pub mod fpoly; etc.
+#[cfg(feature = "gpu")]
+pub mod accel;

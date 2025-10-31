@@ -9,9 +9,10 @@ use crate::bpoly::bitreverse;
 use crate::felt::*;
 use crate::poly::*;
 use crate::structs::HoonList;
-
 #[cfg(feature = "gpu")]
-mod accel;  // or `pub mod accel` if you want to reuse elsewhere
+use crate::accel; // not `mod accel;` and not `super::accel`
+use prover_hal::NttDir; // add this in both files (needed for NttDir::Forward)
+
 
 #[inline(always)]
 pub fn fpadd(a: &[Felt], b: &[Felt], res: &mut [Felt]) {
@@ -220,19 +221,10 @@ pub fn fp_shift(poly_a: &[Felt], felt_b: &Felt, poly_res: &mut [Felt]) {
     }
 }
 
-pub fn fp_ntt(fp: &[Felt], root: &Felt) -> Vec<Felt> {
-    #[cfg(feature = "gpu")]
-    {
-        if let Some(out) = super::accel::with_backend(|b| {
-            let mut buf = fp.to_vec();
-            // IMPORTANT: we pass the domain via `root`. If your HAL currently lacks a root parameter,
-            // see the note below to extend the trait (NTT needs the correct root-of-unity).
-            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, *root).ok()?;
-            Some(buf)
-        }) {
-            if let Some(v) = out { return v; }
-        }
-    }
+// 1) Extract the raw CPU logic into a CPU-only function:
+pub fn fp_ntt_cpu(fp: &[Felt], root: &Felt) -> Vec<Felt> {
+    // ⬇️ move your original CPU fp_ntt body here unchanged
+    // ... existing code that computes NTT on CPU ...
 
     let n = fp.len() as u32;
 
@@ -280,6 +272,22 @@ pub fn fp_ntt(fp: &[Felt], root: &Felt) -> Vec<Felt> {
         m *= 2;
     }
     x
+}
+
+pub fn fp_ntt(fp: &[Felt], root: &Felt) -> Vec<Felt> {
+    #[cfg(feature = "gpu")]
+    {
+        if let Some(out) = accel::with_backend(|b| {
+            let mut buf = fp.to_vec();
+            // IMPORTANT: we pass the domain via `root`. If your HAL currently lacks a root parameter,
+            // see the note below to extend the trait (NTT needs the correct root-of-unity).
+            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, *root).ok()?;
+            Some(buf)
+        }) {
+            if let Some(v) = out { return v; }
+        }
+    }
+    fp_ntt_cpu(fp, root) // fallback CPU
 }
 
 #[inline(always)]

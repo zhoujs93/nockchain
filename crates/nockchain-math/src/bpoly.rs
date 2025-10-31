@@ -2,6 +2,9 @@ use std::vec;
 
 use crate::belt::{bpow, Belt, FieldError};
 use crate::poly::*;
+#[cfg(feature = "gpu")]
+use crate::accel;
+use prover_hal::NttDir; // <-- missing in your commit
 
 pub fn bpadd(a: &[Belt], b: &[Belt], res: &mut [Belt]) {
     let min: &[Belt];
@@ -212,24 +215,11 @@ pub fn bp_fft(bp: &[Belt]) -> Result<Vec<Belt>, FieldError> {
     Ok(bp_ntt(bp, &root))
 }
 
-pub fn bp_ntt(bp: &[Belt], root: &Belt) -> Vec<Belt> {
-    #[cfg(feature = "gpu")]
-    {
-        if let Some(out) = super::accel::with_backend(|b| {
-            // Convert Belt -> Felt
-            let mut buf: Vec<Felt> = bp.iter().map(|b| b.0 as Felt).collect(); // adjust if API differs
-            let root_f = root.0 as Felt;
-
-            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, root_f).ok()?;
-
-            // Convert Felt -> Belt
-            let v: Vec<Belt> = buf.into_iter().map(|x| Belt(x as u64)).collect();
-            Some(v)
-        }) {
-            if let Some(v) = out { return v; }
-        }
-    }
-    let n = bp.len() as u32;
+// 1) Extract the raw CPU logic into a CPU-only function:
+pub fn bp_ntt_cpu(fp: &[Felt], root: &Felt) -> Vec<Felt> {
+    // ⬇️ move your original CPU fp_ntt body here unchanged
+    // ... existing code that computes NTT on CPU ...
+        let n = bp.len() as u32;
 
     if n == 1 {
         return vec![bp[0]];
@@ -271,6 +261,27 @@ pub fn bp_ntt(bp: &[Belt], root: &Belt) -> Vec<Belt> {
         m *= 2;
     }
     x
+}
+
+
+pub fn bp_ntt(bp: &[Belt], root: &Belt) -> Vec<Belt> {
+    #[cfg(feature = "gpu")]
+    {
+        if let Some(out) = crate::accel::with_backend(|b| {
+            // Convert Belt -> Felt
+            let mut buf: Vec<Felt> = bp.iter().map(|b| b.0 as Felt).collect(); // adjust if API differs
+            let root_f = root.0 as Felt;
+
+            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, root_f).ok()?;
+
+            // Convert Felt -> Belt
+            let v: Vec<Belt> = buf.into_iter().map(|x| Belt(x as u64)).collect();
+            Some(v)
+        }) {
+            if let Some(v) = out { return v; }
+        }
+    }
+    bp_ntt_cpu(bp, root) // fallback CPU
 }
 
 #[inline(always)]

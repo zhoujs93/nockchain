@@ -1,25 +1,10 @@
-use prover_hal::{ProverBackend, NttDir, Felt};
 use anyhow::Result;
+use prover_hal::{ProverBackend, NttDir, Felt};
 
 #[cfg(feature = "cuda-ptx")]
 mod cuda_backend;
 #[cfg(feature = "icicle")]
 mod icicle_backend;
-
-#[cfg(feature = "cuda-ptx")]
-pub fn new_cuda() -> Result<Self> { /* loads PTX, stream, etc. */ }
-
-#[cfg(feature = "icicle")]
-pub fn new_icicle() -> Result<Self> { /* sets up ICICLE runtime */ }
-
-impl ProverBackend for GpuBackend { /* delegate all methods */ }
-
-pub enum WhichGpuBackend {
-    #[cfg(feature = "cuda-ptx")]
-    CudaPtx,
-    #[cfg(feature = "icicle")]
-    Icicle,
-}
 
 pub struct GpuBackend {
     inner_name: &'static str,
@@ -43,12 +28,12 @@ impl GpuBackend {
 impl ProverBackend for GpuBackend {
     fn name(&self) -> &'static str { self.inner_name }
 
-    fn ntt_inplace(&mut self, poly: &mut [Felt], dir: NttDir) -> Result<()> {
-        self.inner.ntt_inplace(poly, dir)
+    fn ntt_inplace_with_root(&mut self, poly: &mut [Felt], dir: NttDir, root: Felt) -> Result<()> {
+        self.inner.ntt_inplace_with_root(poly, dir, root)
     }
 
-    fn ntt_batched(&mut self, polys: &mut [&mut [Felt]], dir: NttDir) -> Result<()> {
-        self.inner.ntt_batched(polys, dir)
+    fn ntt_batched_with_root(&mut self, polys: &mut [&mut [Felt]], dir: NttDir, root: Felt) -> Result<()> {
+        self.inner.ntt_batched_with_root(polys, dir, root)
     }
 
     fn hash_many(&mut self, inputs: &[Felt], arity: usize, out: &mut [Felt]) -> Result<()> {

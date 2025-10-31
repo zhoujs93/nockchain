@@ -17,9 +17,9 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 static ALLOC: tracy_client::ProfiledAllocator<tikv_jemallocator::Jemalloc> =
     tracy_client::ProfiledAllocator::new(tikv_jemallocator::Jemalloc, 100);
 
-// ---- NEW: bring in the backend types & registration ----
+// ---- backend types & registry ----
 use prover_hal::ProverBackend;
-use prover_hal::global::set_backend;
+use nockchain_math::accel::install_backend;
 use prover::CpuBackend;
 #[cfg(feature = "gpu")]
 use prover_gpu::GpuBackend;
@@ -49,20 +49,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     nockvm::check_endian();
 
     // Parse all CLI in one shot
-    let Args { cli, gpu, gpu_devices, gpu_batch } = Args::parse();
+    let Args { cli, gpu, gpu_devices: _gpu_devices, gpu_batch: _gpu_batch } = Args::parse();
 
-    // Keep your tracing/init flow
+    // Tracing/init
     boot::init_default_tracing(&cli.nockapp_cli);
 
-    // Construct and REGISTER the backend so math (fp_ntt, bp_ntt) can find it.
+    // Construct the backend FIRST
     let backend: Box<dyn ProverBackend> = {
         #[cfg(feature = "gpu")]
         {
             if gpu {
-                // You can optionally parse gpu_devices / gpu_batch here
-                // e.g., respect CUDA_VISIBLE_DEVICES or pass into your GpuBackend::new_*.
-                Box::new(GpuBackend::new_cuda()?)
-                // or: Box::new(GpuBackend::new_icicle()?)
+                // TODO: thread _gpu_devices / _gpu_batch into your backend ctor if/when supported
+                Box::new(GpuBackend::new_cuda()?)   // or: GpuBackend::new_icicle()?
             } else {
                 Box::new(CpuBackend::new())
             }
@@ -72,17 +70,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Box::new(CpuBackend::new())
         }
     };
-    set_backend(backend)?; // <-- critical
 
-    // Your existing boot
+    // Then install it globally so math (fp_ntt/bp_ntt) can find it
+    let _ = install_backend(backend);
+
+    // Boot the node
     let prover_hot_state = produce_prover_hot_state();
     let mut nockchain: NockApp = nockchain::init_with_kernel(
         cli,
         KERNEL,
         prover_hot_state.as_slice(),
         NockchainAPIConfig::DisablePublicServer,
-    ).await?;
+    ).await?; // <-- keep the ?
 
-    nockchain.run().await?;
+    nockchain.run().await?;  // <-- and keep the ?
     Ok(())
 }
