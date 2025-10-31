@@ -10,6 +10,9 @@ use crate::felt::*;
 use crate::poly::*;
 use crate::structs::HoonList;
 
+#[cfg(feature = "gpu")]
+mod accel;  // or `pub mod accel` if you want to reuse elsewhere
+
 #[inline(always)]
 pub fn fpadd(a: &[Felt], b: &[Felt], res: &mut [Felt]) {
     let min: &[Felt];
@@ -218,6 +221,19 @@ pub fn fp_shift(poly_a: &[Felt], felt_b: &Felt, poly_res: &mut [Felt]) {
 }
 
 pub fn fp_ntt(fp: &[Felt], root: &Felt) -> Vec<Felt> {
+    #[cfg(feature = "gpu")]
+    {
+        if let Some(out) = super::accel::with_backend(|b| {
+            let mut buf = fp.to_vec();
+            // IMPORTANT: we pass the domain via `root`. If your HAL currently lacks a root parameter,
+            // see the note below to extend the trait (NTT needs the correct root-of-unity).
+            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, *root).ok()?;
+            Some(buf)
+        }) {
+            if let Some(v) = out { return v; }
+        }
+    }
+
     let n = fp.len() as u32;
 
     if n == 1 {

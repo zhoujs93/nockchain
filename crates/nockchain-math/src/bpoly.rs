@@ -213,6 +213,22 @@ pub fn bp_fft(bp: &[Belt]) -> Result<Vec<Belt>, FieldError> {
 }
 
 pub fn bp_ntt(bp: &[Belt], root: &Belt) -> Vec<Belt> {
+    #[cfg(feature = "gpu")]
+    {
+        if let Some(out) = super::accel::with_backend(|b| {
+            // Convert Belt -> Felt
+            let mut buf: Vec<Felt> = bp.iter().map(|b| b.0 as Felt).collect(); // adjust if API differs
+            let root_f = root.0 as Felt;
+
+            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, root_f).ok()?;
+
+            // Convert Felt -> Belt
+            let v: Vec<Belt> = buf.into_iter().map(|x| Belt(x as u64)).collect();
+            Some(v)
+        }) {
+            if let Some(v) = out { return v; }
+        }
+    }
     let n = bp.len() as u32;
 
     if n == 1 {

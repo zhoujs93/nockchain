@@ -6,6 +6,14 @@ mod cuda_backend;
 #[cfg(feature = "icicle")]
 mod icicle_backend;
 
+#[cfg(feature = "cuda-ptx")]
+pub fn new_cuda() -> Result<Self> { /* loads PTX, stream, etc. */ }
+
+#[cfg(feature = "icicle")]
+pub fn new_icicle() -> Result<Self> { /* sets up ICICLE runtime */ }
+
+impl ProverBackend for GpuBackend { /* delegate all methods */ }
+
 pub enum WhichGpuBackend {
     #[cfg(feature = "cuda-ptx")]
     CudaPtx,

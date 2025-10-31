@@ -1,0 +1,3 @@
+[dependencies]
+anyhow = "1"                # if not already present
+prover-hal = { path = "../prover-hal" }
