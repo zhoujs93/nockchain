@@ -1,0 +1,20 @@
+[package]
+name = "prover-gpu"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+# Select ONE of these at a time (or default to "cuda-ptx")
+cuda-ptx = ["dep:cust"]
+icicle   = ["dep:icicle-runtime", "dep:icicle-core"]
+
+[dependencies]
+anyhow = "1"
+prover-hal = { path = "../prover-hal" }
+
+# CUDA/PTX runtime in Rust
+cust = { version = "0.7", optional = true }
+
+# ICICLE (GPU ZK primitives). You can pin to a known commit.
+icicle-runtime = { git = "https://github.com/ingonyama-zk/icicle.git", optional = true }
+icicle-core    = { git = "https://github.com/ingonyama-zk/icicle.git", optional = true }

@@ -9,6 +9,7 @@ edition.workspace = true
 bazel_build = []
 jemalloc = ["tikv-jemallocator"]
 tracing-heap = ["tikv-jemallocator", "tracy-client"]
+gpu = ["prover-gpu"]   # enabling 'gpu' pulls in the GPU crate
 
 [dependencies]
 hoonc.workspace = true
@@ -39,6 +40,8 @@ libp2p = { workspace = true, features = [
     "request-response",
     "cbor",
 ] }
+prover-hal = { path = "../prover-hal" }
+prover-gpu = { path = "../prover-gpu", optional = true }
 nockchain-libp2p-io.workspace = true
 num_cpus = { workspace = true }
 rand = { workspace = true }

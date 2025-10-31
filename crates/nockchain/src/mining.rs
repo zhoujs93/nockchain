@@ -118,14 +118,8 @@ pub fn create_mining_driver(
 ) -> IODriverFn {
     Box::new(move |handle| {
         Box::pin(async move {
-            // set up empty config for v0 keys (TODO remove when taking out pubkey infra from kernel)
-            let mut configs = Vec::<MiningKeyConfig>::new();
-            configs.push(MiningKeyConfig {
-                share: 1,
-                m: 1,
-                // hardcoded key to satisfy pass-through for v0 pubkey mining infra
-                keys: vec!["2qwq9dQRZfpFx8BDicghpMRnYGKZsZGxxhh9m362pzpM9aeo276pR1yHZPS41y3CW3vPKxeYM8p8fzZS8GXmDGzmNNCnVNekjrSYogqfEFMqwhHh5iCjaKPaDTwhupWqiXj6".to_string()],
-            });
+            // set up empty config for v0 keys (TODO remove when taking out pubkey infra)
+            let configs = Vec::<MiningKeyConfig>::new();
 
             let Some(pkh_configs) = mining_pkh_config else {
                 enable_mining(&handle, false).await?;
@@ -140,6 +134,9 @@ pub fn create_mining_driver(
 
                 return Ok(());
             };
+
+            // NOTE: avoid Hoon crash when v0 list is empty (PKH-only path).
+            // set_mining_key_advanced() is now a no-op in that case.
             set_mining_key_advanced(&handle, configs, pkh_configs).await?;
             enable_mining(&handle, mine).await?;
 
@@ -329,11 +326,21 @@ fn create_poke(mining_data: &MiningData, nonce: &NounSlab) -> NounSlab {
     slab
 }
 
+// NOTE: changed return type to Result<(), NockAppError> and added an early guard
 async fn set_mining_key_advanced(
     handle: &NockAppHandle,
-    configs: Vec<MiningKeyConfig>,
-    pkh_configs: Vec<MiningPkhConfig>,
-) -> Result<PokeResult, NockAppError> {
+    configs: Vec<MiningKeyConfig>,      // v0 (pubkey/multisig) configs
+    pkh_configs: Vec<MiningPkhConfig>,  // v1 (PKH) configs
+) -> Result<(), NockAppError> {
+    // Hoon currently exits if the v0 "sigs" list is empty. Avoid the poke in that case.
+    if configs.is_empty() {
+        info!(
+            "set-mining-key-advanced: v0 list empty; skipping poke (pkh-only entries: {})",
+            pkh_configs.len()
+        );
+        return Ok(());
+    }
+
     let mut set_mining_key_slab = NounSlab::new();
     let set_mining_key_adv = Atom::from_value(&mut set_mining_key_slab, "set-mining-key-advanced")
         .expect("Failed to create set-mining-key-advanced atom");
@@ -385,6 +392,7 @@ async fn set_mining_key_advanced(
     handle
         .poke(MiningWire::SetPubKey.to_wire(), set_mining_key_slab)
         .await
+        .map(|_ok: PokeResult| ())
 }
 
 //TODO add %set-mining-key-multisig poke

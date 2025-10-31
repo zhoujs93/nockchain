@@ -17,6 +17,25 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 static ALLOC: tracy_client::ProfiledAllocator<tikv_jemallocator::Jemalloc> =
     tracy_client::ProfiledAllocator::new(tikv_jemallocator::Jemalloc, 100);
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(name = "nockchain")]
+pub struct Args {
+    // ... existing options ...
+    /// Enable the GPU prover backend (requires building with --features gpu)
+    #[arg(long, default_value_t = false)]
+    pub gpu: bool,
+
+    /// Comma-separated device list (e.g., "0" or "0,1")
+    #[arg(long, default_value = "0")]
+    pub gpu_devices: String,
+
+    /// Batch size for GPU NTT/hash steps
+    #[arg(long, default_value_t = 1024)]
+    pub gpu_batch: usize,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     nockvm::check_endian();

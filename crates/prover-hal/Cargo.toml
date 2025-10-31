@@ -1,0 +1,11 @@
+[package]
+name = "prover-hal"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+# marker used by the workspace when you pass --features gpu
+gpu = []
+
+[dependencies]
+anyhow = "1"
