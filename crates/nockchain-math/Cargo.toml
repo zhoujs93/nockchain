@@ -33,3 +33,5 @@ thiserror.workspace = true
 
 [dev-dependencies]
 quickcheck.workspace = true
+prover-gpu = { path = "../prover-gpu" }   # needed only for tests
+prover-hal = { path = "../prover-hal" }   # for Felt/NttDir in tests
