@@ -1,43 +1,49 @@
-use anyhow::Result;
-use prover_hal::{ProverBackend, NttDir, Felt};
+// crates/prover-gpu/src/icicle_backend.rs
+use anyhow::{bail, Result};
+use prover_hal::{Felt, NttDir, ProverBackend};
 
-// Pseudo imports; pick the right field module & APIs from ICICLE.
-// Example names; confirm in your environment.
-use icicle_runtime::{DeviceVec};
-use icicle_core::ntt::{NTTConfig, ntt_inplace as icicle_ntt_inplace};
+// If you want to keep the types handy for a future GPU impl:
+#[allow(unused_imports)]
+use icicle_runtime::{Device};
+#[allow(unused_imports)]
+use icicle_runtime::memory::DeviceVec;
 
 pub struct IcicleBackend {
-    cfg: NTTConfig, // tune batch size/streams later
+    #[allow(dead_code)]
+    device: Option<Device>,
 }
 
 impl IcicleBackend {
     pub fn new() -> Result<Self> {
-        // Initialize once; select device 0, set stream count, etc.
-        Ok(Self { cfg: NTTConfig::default() })
+        // TODO: select/create a device when you wire the real kernels
+        Ok(Self { device: None })
     }
 }
 
 impl ProverBackend for IcicleBackend {
     fn name(&self) -> &'static str { "gpu-icicle" }
 
-    fn ntt_inplace(&mut self, poly: &mut [Felt], dir: NttDir) -> Result<()> {
-        // Copy to device; call ICICLE NTT; copy back.
-        let mut d = DeviceVec::<Felt>::from_slice(poly)?;
-        let forward = matches!(dir, NttDir::Forward);
-        icicle_ntt_inplace(&mut d, forward, &self.cfg)?;
-        d.copy_to(poly)?;
-        Ok(())
+    fn ntt_inplace_with_root(
+        &mut self,
+        _poly: &mut [Felt],
+        _dir: NttDir,
+        _root: Felt,
+    ) -> Result<()> {
+        // TEMP: return an error so the higher-level wrapper falls back to CPU.
+        // Your fpoly/bpoly wrappers use `.ok()?` so an Err here triggers CPU fallback cleanly.
+        bail!("ICICLE NTT not wired yet")
     }
 
-    fn ntt_batched(&mut self, polys: &mut [&mut [Felt]], dir: NttDir) -> Result<()> {
-        // (Optional) pack into a single device buffer and call ICICLE batched NTT.
-        for p in polys { self.ntt_inplace(p, dir)?; }
-        Ok(())
+    fn ntt_batched_with_root(
+        &mut self,
+        _polys: &mut [&mut [Felt]],
+        _dir: NttDir,
+        _root: Felt,
+    ) -> Result<()> {
+        bail!("ICICLE batched NTT not wired yet")
     }
 
     fn hash_many(&mut self, _inputs: &[Felt], _arity: usize, _out: &mut [Felt]) -> Result<()> {
-        // Use ICICLE Poseidon hash-many API for your arity.
-        // icicle_poseidon::hash_many(...)
-        anyhow::bail!("hash_many not wired yet; connect ICICLE Poseidon here")
+        bail!("ICICLE hash_many not wired yet")
     }
 }

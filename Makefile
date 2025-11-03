@@ -15,9 +15,39 @@ CARGO_FLAGS ?=
 
 # GPU build switch (off by default). Usage: make GPU=1 install-nockchain
 GPU ?= 0
+BACKEND ?= icicle  # default to ICICLE to avoid cust entirely
+
+# Global workspace features (used where appropriate)
 CARGO_FEATURES :=
+
+# nockchain-only features (we'll pass this only to nockchain targets)
+NCHAIN_FEATURES :=
+
 ifeq ($(GPU),1)
-  CARGO_FEATURES += --features gpu
+  # the workspace has a 'gpu' feature that enables GPU plumbing
+  NCHAIN_FEATURES += --features gpu
+  ifeq ($(BACKEND),icicle)
+    NCHAIN_FEATURES += --features icicle
+  else ifeq ($(BACKEND),cuda)
+    NCHAIN_FEATURES += --features cuda-ptx
+  else
+    $(error Unknown BACKEND '$(BACKEND)'; use BACKEND=icicle or BACKEND=cuda)
+  endif
+endif
+
+# Add near your BACKEND switch
+ICICLE_ENV :=
+ICICLE_CUDA_ARCH ?= 89        # RTX 4090
+CUDAARCHS        ?= 89
+
+ifeq ($(GPU),1)
+  ifeq ($(BACKEND),icicle)
+    ICICLE_ENV := CC=/usr/bin/gcc CXX=/usr/bin/g++ \
+                  CMAKE_C_COMPILER=/usr/bin/gcc CMAKE_CXX_COMPILER=/usr/bin/g++ \
+                  ICICLE_CUDA_ARCH=$(ICICLE_CUDA_ARCH) CUDAARCHS=$(CUDAARCHS) \
+                  CUDA_HOME=$(CUDA_HOME) PATH=$(CUDA_HOME)/bin:$(PATH) \
+                  LD_LIBRARY_PATH=$(CUDA_HOME)/lib64:$(LD_LIBRARY_PATH)
+  endif
 endif
 
 # Utility macro to print key env vars
@@ -60,21 +90,20 @@ build-hoon-all: build-hoonc
 .PHONY: build-hoonc
 build-hoonc: nuke-hoonc-data
 	$(call show_env_vars)
-	@echo "==> cargo build --release --locked --bin hoonc $(CARGO_FLAGS) $(CARGO_FEATURES)"
-	@cargo build --release --locked --bin hoonc $(CARGO_FLAGS) $(CARGO_FEATURES)
+	@echo "==> cargo build --release --locked --bin hoonc $(CARGO_FLAGS)"
+	@cargo build --release --locked --bin hoonc $(CARGO_FLAGS)
 
 .PHONY: build-hoonc-tracing
 build-hoonc-tracing: nuke-hoonc-data
 	$(call show_env_vars)
-	@echo "==> cargo build --release --bin hoonc --features tracing-tracy $(CARGO_FLAGS) $(CARGO_FEATURES)"
-	@cargo build --release --bin hoonc --features tracing-tracy $(CARGO_FLAGS) $(CARGO_FEATURES)
+	@echo "==> cargo build --release --bin hoonc --features tracing-tracy $(CARGO_FLAGS)"
+	@cargo build --release --bin hoonc --features tracing-tracy $(CARGO_FLAGS)
 
-## Install binaries
 .PHONY: install-hoonc
 install-hoonc: nuke-hoonc-data
 	$(call show_env_vars)
-	@echo "==> cargo install --path crates/hoonc --locked --force $(CARGO_FLAGS) $(CARGO_FEATURES) --bin hoonc"
-	@cargo install --path crates/hoonc --locked --force $(CARGO_FLAGS) $(CARGO_FEATURES) --bin hoonc
+	@echo "==> cargo install --path crates/hoonc --locked --force $(CARGO_FLAGS) --bin hoonc"
+	@cargo install --path crates/hoonc --locked --force $(CARGO_FLAGS) --bin hoonc
 
 .PHONY: update-hoonc
 update-hoonc:
@@ -82,17 +111,18 @@ update-hoonc:
 	@echo "==> cargo install --locked --path crates/hoonc --bin hoonc"
 	@cargo install --locked --path crates/hoonc --bin hoonc
 
+
 .PHONY: build-nockchain
 build-nockchain: assets/dumb.jam assets/miner.jam
 	$(call show_env_vars)
-	@echo "==> cargo build --release --bin nockchain --features tracing-tracy $(CARGO_FLAGS) $(CARGO_FEATURES)"
-	@cargo build --release --bin nockchain --features tracing-tracy $(CARGO_FLAGS) $(CARGO_FEATURES)
+	@echo "==> $(ICICLE_ENV) cargo build --release --bin nockchain --features tracing-tracy $(CARGO_FLAGS) $(NCHAIN_FEATURES)"
+	@$(ICICLE_ENV) cargo build --release --bin nockchain --features tracing-tracy $(CARGO_FLAGS) $(NCHAIN_FEATURES)
 
 .PHONY: install-nockchain
 install-nockchain: assets/dumb.jam assets/miner.jam
 	$(call show_env_vars)
-	@echo "==> cargo install --path crates/nockchain --locked --force $(CARGO_FLAGS) $(CARGO_FEATURES) --bin nockchain"
-	@cargo install --path crates/nockchain --locked --force $(CARGO_FLAGS) $(CARGO_FEATURES) --bin nockchain
+	@echo "==> $(ICICLE_ENV) cargo install --path crates/nockchain --locked --force $(CARGO_FLAGS) $(NCHAIN_FEATURES) --bin nockchain"
+	@$(ICICLE_ENV) cargo install --path crates/nockchain --locked --force $(CARGO_FLAGS) $(NCHAIN_FEATURES) --bin nockchain
 
 ## --- Stubs / helpers you referenced ---
 

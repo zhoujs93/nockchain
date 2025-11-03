@@ -1,4 +1,12 @@
+[package]
+name = "prover"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 anyhow = "1"
 prover-hal = { path = "../prover-hal" }
-nockchain-math = { path = "../nockchain-math" }   # <-- add this
+nockchain-math = { path = "../nockchain-math" }

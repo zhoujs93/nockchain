@@ -216,7 +216,7 @@ pub fn bp_fft(bp: &[Belt]) -> Result<Vec<Belt>, FieldError> {
 }
 
 // 1) Extract the raw CPU logic into a CPU-only function:
-pub fn bp_ntt_cpu(fp: &[Felt], root: &Felt) -> Vec<Felt> {
+pub fn bp_ntt_cpu(bp: &[Belt], root: &Belt) -> Vec<Belt> {
     // ⬇️ move your original CPU fp_ntt body here unchanged
     // ... existing code that computes NTT on CPU ...
         let n = bp.len() as u32;
@@ -267,22 +267,24 @@ pub fn bp_ntt_cpu(fp: &[Felt], root: &Felt) -> Vec<Felt> {
 pub fn bp_ntt(bp: &[Belt], root: &Belt) -> Vec<Belt> {
     #[cfg(feature = "gpu")]
     {
-        if let Some(out) = crate::accel::with_backend(|b| {
-            // Convert Belt -> Felt
-            let mut buf: Vec<Felt> = bp.iter().map(|b| b.0 as Felt).collect(); // adjust if API differs
-            let root_f = root.0 as Felt;
+        if let Some(out) = accel::with_backend(|b| {
+            // Convert Belt -> Felt (u64) only for the GPU call
+            let mut buf: Vec<u64> = bp.iter().map(|x| x.0 as u64).collect();
+            let root_u64 = root.0 as u64;
 
-            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, root_f).ok()?;
+            b.ntt_inplace_with_root(&mut buf, NttDir::Forward, root_u64).ok()?;
 
-            // Convert Felt -> Belt
-            let v: Vec<Belt> = buf.into_iter().map(|x| Belt(x as u64)).collect();
-            Some(v)
+            // Convert back Felt(u64) -> Belt
+            Some(buf.into_iter().map(|x| Belt(x as u64)).collect::<Vec<Belt>>())
         }) {
             if let Some(v) = out { return v; }
         }
     }
-    bp_ntt_cpu(bp, root) // fallback CPU
+
+    // Fallback to CPU
+    bp_ntt_cpu(bp, root)
 }
+
 
 #[inline(always)]
 pub fn bp_shift(poly_a: &[Belt], belt_b: &Belt, poly_res: &mut [Belt]) {

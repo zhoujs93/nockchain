@@ -24,6 +24,7 @@ use prover::CpuBackend;
 #[cfg(feature = "gpu")]
 use prover_gpu::GpuBackend;
 
+
 // ---- CLI structure: flatten existing NockchainCli + GPU flags ----
 #[derive(Parser, Debug)]
 #[command(name = "nockchain")]
@@ -43,6 +44,20 @@ pub struct Args {
     #[arg(long, default_value_t = 1024)]
     pub gpu_batch: usize,
 }
+
+// Construct and register the backend so math can find it
+#[cfg(feature = "gpu")]
+{
+    let backend: Box<dyn ProverBackend> = if args.gpu {
+        // ICICLE backend:
+        Box::new(GpuBackend::new_icicle()?)
+    } else {
+        Box::new(CpuBackend::new())
+    };
+    // Make GPU/CPU backend visible to nockchain-math wrappers
+    let _ = install_backend(backend);
+}
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

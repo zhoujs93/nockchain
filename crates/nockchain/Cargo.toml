@@ -9,9 +9,16 @@ edition.workspace = true
 bazel_build = []
 jemalloc = ["tikv-jemallocator"]
 tracing-heap = ["tikv-jemallocator", "tracy-client"]
-gpu = ["prover-gpu"]   # enabling 'gpu' pulls in the GPU crate
+
+# existing:
+gpu      = ["prover-gpu", "nockchain-math/gpu"]
+
+# NEW: pass-throughs to dependency features
+icicle   = ["gpu", "prover-gpu/icicle"]
+cuda-ptx = ["gpu", "prover-gpu/cuda-ptx"]
 
 [dependencies]
+prover = { path = "../prover" }
 hoonc.workspace = true
 kernels = { workspace = true, features = ["dumb", "miner"] }
 nockapp.workspace = true
@@ -25,7 +32,6 @@ clap = { version = "4.5", features = ["derive"] }
 
 bitcoincore-rpc.workspace = true
 bs58.workspace = true
-clap.workspace = true
 equix.workspace = true
 futures.workspace = true
 ibig.workspace = true

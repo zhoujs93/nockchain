@@ -3,10 +3,6 @@ resolver = "2"
 [workspace]
 members = ["crates/equix-latency", "crates/hoon", "crates/hoonc", "crates/kernels", "crates/nockapp", "crates/nockapp-grpc", "crates/nockchain", "crates/nockchain-libp2p-io", "crates/nockchain-math", "crates/nockchain-peek", "crates/nockchain-types", "crates/nockchain-wallet", "crates/nockvm/rust/ibig", "crates/nockvm/rust/murmur3", "crates/nockvm/rust/nockvm", "crates/nockvm/rust/nockvm_macros", "crates/noun-serde", "crates/noun-serde-derive", "crates/zkvm-jetpack", "crates/prover-hal", "crates/prover-gpu"]
 
-[profile.release]
-lto = true
-codegen-units = 1
-
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

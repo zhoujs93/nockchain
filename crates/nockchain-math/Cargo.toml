@@ -3,8 +3,6 @@ name = "nockchain-math"
 version.workspace = true
 edition.workspace = true
 
-[dependencies]
-
 [features]
 gpu = []  # enable this when the workspace builds with GPU
 
@@ -24,14 +22,13 @@ nockvm.workspace = true
 nockvm_macros.workspace = true
 noun-serde.workspace = true
 num-traits.workspace = true
-once_cell.workspace = true
-quickcheck.workspace = true
 rkyv.workspace = true
 serde = { workspace = true, features = ["derive"], default-features = false }
 tracing.workspace = true
 thiserror.workspace = true
+quickcheck = { version = "1", optional = true }
 
 [dev-dependencies]
-quickcheck.workspace = true
-prover-gpu = { path = "../prover-gpu" }   # needed only for tests
-prover-hal = { path = "../prover-hal" }   # for Felt/NttDir in tests
+quickcheck = "1"   # or quickcheck.workspace = true if managed centrally
+prover-gpu = { path = "../prover-gpu" }
+prover-hal = { path = "../prover-hal" }

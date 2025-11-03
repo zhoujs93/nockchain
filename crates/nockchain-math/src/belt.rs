@@ -12,8 +12,6 @@ use serde::de::Error as SerdeError;
 use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
 use tracing::debug;
 
-use crate::based;
-
 // Base field arithmetic functions.
 pub const PRIME: u64 = 18446744069414584321;
 pub const PRIME_PRIME: u64 = PRIME - 2;
@@ -299,12 +297,6 @@ impl From<Belt> for u32 {
     }
 }
 
-impl quickcheck::Arbitrary for Belt {
-    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-        Belt(u64::arbitrary(g) % PRIME)
-    }
-}
-
 #[derive(Debug)]
 pub enum FieldError {
     OrderedRootError,
@@ -477,4 +469,16 @@ pub fn bpow(mut a: u64, mut b: u64) -> u64 {
         }
     }
     reduce((c as u128) * (a as u128))
+}
+
+#[cfg(test)]
+mod qc_impl {
+    use super::*;
+    use quickcheck::{Arbitrary, Gen};
+
+    impl Arbitrary for Belt {
+        fn arbitrary(g: &mut Gen) -> Self {
+            Belt(u64::arbitrary(g))
+        }
+    }
 }
